@@ -1,6 +1,3 @@
-import com.lombokextensions.Visitor;
-import lombok.Data;
-import lombok.core.PrintAST;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
@@ -17,9 +14,8 @@ public class VisitorTest {
         });
     }
 
-    @Visitor
-    private abstract class VisitorHelper {
+    @Test
+    public void testAbstractClassVisitorCreated() {
+        Assertions.assertNotNull(VisitorHelper.VisitorHelperVisitor.class);
     }
-
-
 }

@@ -1,13 +1,16 @@
-package com.lombokextensions.handlers;
+package com.lombokextensions.handlers.visitor;
 
 import com.lombokextensions.Visitor;
 import com.lombokextensions.common.Utils;
 import com.sun.tools.javac.code.Flags;
+import com.sun.tools.javac.code.Type;
+import com.sun.tools.javac.code.Types;
 import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.util.List;
 import com.sun.tools.javac.util.Name;
 import lombok.core.AST;
 import lombok.core.AnnotationValues;
+import lombok.core.HandlerPriority;
 import lombok.javac.JavacAnnotationHandler;
 import lombok.javac.JavacNode;
 import lombok.javac.JavacTreeMaker;
@@ -27,16 +30,14 @@ public class VisitorHandler extends JavacAnnotationHandler<Visitor> {
     public void handle(final AnnotationValues<Visitor> annotationValues,
                        final JCTree.JCAnnotation jcAnnotation,
                        final JavacNode annotationNode) {
-
         preProcessCleanup(annotationNode);
 
         final JavacNode baseClassNode = annotationNode.up();
 
-        if (!validateUsage(annotationNode, baseClassNode)) {
-            return;
-        }
-
         try {
+            validateUsage(annotationNode, baseClassNode);
+            VisitorClassGenerator visitorClassGenerator = new VisitorClassGenerator(baseClassNode);
+            visitorClassGenerator.generateEmptyClass();
             addAcceptDeclInBaseClass(baseClassNode);
         } catch (StopException e) {
             return;
@@ -80,19 +81,17 @@ public class VisitorHandler extends JavacAnnotationHandler<Visitor> {
         // deleteImportFromCompilationUnit()
     }
 
-    private boolean validateUsage(final JavacNode annotationNode,
-                                  final JavacNode baseClassNode) {
+    private void validateUsage(final JavacNode annotationNode,
+                               final JavacNode baseClassNode) throws StopException {
         if (baseClassNode == null) {
             annotationNode.addError("@Visitor doesn't have a parent.");
-            return false;
+            throw new StopException();
         }
 
         if (baseClassNode.getKind() != AST.Kind.TYPE) {
             annotationNode.addError("@Visitor only supported on a class.");
-            return false;
+            throw new StopException();
         }
-
-        return true;
     }
 
     private JCTree.JCModifiers modifiersForAcceptorDeclInBaseClass(final JavacNode baseClassNode) throws StopException {

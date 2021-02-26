@@ -9,6 +9,9 @@
     <properties>
         <lombok.version>1.14.8</lombok.version>
         <metainf-services.version>1.8</metainf-services.version>
+
+        <junit.jupiter.version>5.6.0</junit.jupiter.version>
+
         <maven.compiler.source>1.8</maven.compiler.source>
         <maven.compiler.target>1.8</maven.compiler.target>
     </properties>
@@ -27,6 +30,12 @@
             <version>${metainf-services.version}</version>
         </dependency>
 
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>${junit.jupiter.version}</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <profiles>

@@ -59,7 +59,7 @@ public class HelloWorldHandler extends JavacAnnotationHandler<HelloWorld> {
     private JCTree.JCBlock createHelloWorldMethodBody(JavacNode typeNode) {
         JavacTreeMaker treeMaker = typeNode.getTreeMaker();
         JCTree.JCExpression printlnMethod = JavacHandlerUtil.chainDots(typeNode, "System", "out", "println");
-        List<JCTree.JCExpression> printlnArgs = List.<JCTree.JCExpression>of(treeMaker.Literal("Hello world!"));
+        List<JCTree.JCExpression> printlnArgs = List.<JCTree.JCExpression>of(treeMaker.Literal("Hello World!"));
         JCTree.JCMethodInvocation invocation = treeMaker.Apply(List.<JCTree.JCExpression>nil(), printlnMethod, printlnArgs);
 
         return treeMaker.Block(0, List.<JCTree.JCStatement>of(treeMaker.Exec(invocation)));

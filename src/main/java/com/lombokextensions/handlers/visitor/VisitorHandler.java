@@ -2,6 +2,7 @@ package com.lombokextensions.handlers.visitor;
 
 import com.lombokextensions.Visitor;
 import com.lombokextensions.common.Utils;
+import com.lombokextensions.exception.StopException;
 import com.sun.tools.javac.code.Flags;
 import com.sun.tools.javac.code.Type;
 import com.sun.tools.javac.code.Types;
@@ -18,13 +19,17 @@ import lombok.javac.handlers.JavacHandlerUtil;
 import org.kohsuke.MetaInfServices;
 
 import java.lang.reflect.Modifier;
+import java.util.HashMap;
 
 
 @MetaInfServices(JavacAnnotationHandler.class)
+@HandlerPriority(value = 1, subValue = 1)
 public class VisitorHandler extends JavacAnnotationHandler<Visitor> {
     private static final String ACCEPTOR_DEFAULT_NAME = "accept";
     private static final String VISITOR_PARAM_DEFAULT_NAME = "visitor";
     private static final String RETURN_TYPE_GENERIC_DEFAULT_NAME = "T";
+
+    public static HashMap<Type, VisitorClassGenerator> visitorBaseClasses = new HashMap<>();
 
     @Override
     public void handle(final AnnotationValues<Visitor> annotationValues,
@@ -39,6 +44,7 @@ public class VisitorHandler extends JavacAnnotationHandler<Visitor> {
             VisitorClassGenerator visitorClassGenerator = new VisitorClassGenerator(baseClassNode);
             visitorClassGenerator.generateEmptyClass();
             addAcceptDeclInBaseClass(baseClassNode);
+            visitorBaseClasses.put(((JCTree.JCClassDecl)baseClassNode.get()).sym.type, visitorClassGenerator);
         } catch (StopException e) {
             return;
         }
@@ -111,6 +117,4 @@ public class VisitorHandler extends JavacAnnotationHandler<Visitor> {
         return modifiers;
     }
 
-    private class StopException extends Throwable {
-    }
 }

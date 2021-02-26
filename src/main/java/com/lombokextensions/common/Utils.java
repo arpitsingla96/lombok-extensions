@@ -5,6 +5,7 @@ import com.sun.tools.javac.code.Flags;
 import com.sun.tools.javac.tree.JCTree;
 import lombok.javac.JavacNode;
 import lombok.javac.handlers.JavacHandlerUtil;
+import lombok.val;
 
 import java.util.HashSet;
 
@@ -46,9 +47,9 @@ public class Utils {
         // 2. Add used type names.
         for (JCTree member : classDecl.getMembers()) {
             if (member.getKind() == com.sun.source.tree.Tree.Kind.VARIABLE && member instanceof JCTree.JCVariableDecl) {
-                JCTree type = ((JCTree.JCVariableDecl)member).getType();
+                JCTree type = ((JCTree.JCVariableDecl) member).getType();
                 if (type instanceof JCTree.JCIdent)
-                    usedNames.add(((JCTree.JCIdent)type).getName().toString());
+                    usedNames.add(((JCTree.JCIdent) type).getName().toString());
             }
         }
 
@@ -66,6 +67,31 @@ public class Utils {
     public static String generateNonClashingNameFor(final String classGenericName,
                                                     final JCTree.JCClassDecl classDecl) {
         return generateNonClashingNameFor(classGenericName, gatherUsedTypeNames(classDecl));
+    }
+
+    public static String titleCaseToCamelCase(final String titleCase) {
+        if (titleCase == null || titleCase.isEmpty()) {
+            return titleCase;
+        }
+
+        if (titleCase.charAt(0) >= 'A' && titleCase.charAt(0) <= 'Z') {
+            String firstChar = String.valueOf((char) (titleCase.charAt(0) - 'A' + 'a'));
+            return firstChar + titleCase.substring(1);
+        }
+
+        return titleCase;
+    }
+
+    public static String variableNameForClass(final JavacNode classNode) {
+        JCTree.JCClassDecl classDecl = (JCTree.JCClassDecl) classNode.get();
+        String className = classDecl.name.toString();
+        String camelCaseClassName = titleCaseToCamelCase(className);
+
+        if (!camelCaseClassName.equals(className)) {
+            return camelCaseClassName;
+        } else {
+            return className + "0";
+        }
     }
 
 }

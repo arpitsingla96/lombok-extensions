@@ -1,5 +1,7 @@
+package visitor;
+
 import com.lombokextensions.Visitor;
 
 @Visitor
-public abstract class VisitorHelper {
+public interface Animal {
 }

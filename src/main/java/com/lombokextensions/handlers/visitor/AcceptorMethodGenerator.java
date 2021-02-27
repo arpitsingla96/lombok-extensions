@@ -53,7 +53,7 @@ public class AcceptorMethodGenerator {
         JCTree.JCVariableDecl visitorParam = visitorParam(childClassNode, genericName);
 
         JCTree.JCMethodDecl acceptorMethod;
-        acceptorMethod = treeMaker.MethodDef(
+        acceptorMethod = JavacHandlerUtil.recursiveSetGeneratedBy(treeMaker.MethodDef(
                 modifiersForChildImpl(childClassNode),
                 methodName(childClassNode),
                 returnType(childClassNode, genericName),
@@ -62,7 +62,7 @@ public class AcceptorMethodGenerator {
                 List.nil(),
                 childImplBody(childClassNode, visitorParam, visitMethodName),
                 null
-        );
+        ), childClassNode.get(), childClassNode.getContext());
 
         JavacHandlerUtil.injectMethod(childClassNode, acceptorMethod);
     }

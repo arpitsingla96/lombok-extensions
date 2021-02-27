@@ -24,7 +24,7 @@ public class VisitorClassGenerator {
         this.baseClassNode = baseClassNode;
     }
 
-    public void generateEmptyClass() {
+    public JavacNode generateEmptyClass() {
         JavacTreeMaker treeMaker = baseClassNode.getTreeMaker();
 
         JCTree.JCClassDecl visitorClass = treeMaker.ClassDef(
@@ -37,6 +37,8 @@ public class VisitorClassGenerator {
         );
 
         visitorClassNode = JavacHandlerUtil.injectType(baseClassNode, visitorClass);
+
+        return visitorClassNode;
     }
 
     public void addVisitMethod(final JavacNode childClassNode) {

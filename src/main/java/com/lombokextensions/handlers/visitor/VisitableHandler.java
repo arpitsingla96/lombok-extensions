@@ -1,23 +1,18 @@
 package com.lombokextensions.handlers.visitor;
 
 import com.lombokextensions.Visitable;
-import com.lombokextensions.common.Utils;
 import com.lombokextensions.exception.StopException;
-import com.sun.tools.javac.code.Flags;
 import com.sun.tools.javac.code.Type;
 import com.sun.tools.javac.code.Types;
 import com.sun.tools.javac.tree.JCTree;
-import com.sun.tools.javac.util.Name;
 import lombok.core.AST;
 import lombok.core.AnnotationValues;
 import lombok.core.HandlerPriority;
 import lombok.javac.JavacAnnotationHandler;
 import lombok.javac.JavacNode;
-import lombok.javac.JavacTreeMaker;
 import lombok.javac.handlers.JavacHandlerUtil;
 import org.kohsuke.MetaInfServices;
 
-import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -34,11 +29,11 @@ public class VisitableHandler extends JavacAnnotationHandler<Visitable> {
 
         try {
             validateUsage(annotationNode, childClassNode);
-            List<VisitorClassGenerator> visitorClassGenerators = getVisitors(childClassNode);
+            List<VisitorAcceptorPair> visitorAcceptorPairs = getVisitorAcceptorPairs(childClassNode);
 
-            for (VisitorClassGenerator visitorClassGenerator : visitorClassGenerators) {
-                visitorClassGenerator.addVisitMethod(childClassNode);
-                addAcceptorOverride(childClassNode);
+            for (VisitorAcceptorPair visitorAcceptorPair : visitorAcceptorPairs) {
+                visitorAcceptorPair.getVisitor().addVisitMethod(childClassNode);
+                visitorAcceptorPair.getAcceptor().generateImplInChild(childClassNode);
             }
 
         } catch (StopException e) {
@@ -67,65 +62,39 @@ public class VisitableHandler extends JavacAnnotationHandler<Visitable> {
         }
     }
 
-    private List<VisitorClassGenerator> getVisitors(final JavacNode childClassNode) {
+    private List<VisitorAcceptorPair> getVisitorAcceptorPairs(final JavacNode childClassNode) {
         JCTree.JCClassDecl childClassDecl = (JCTree.JCClassDecl) childClassNode.get();
-        java.util.List<Type> closures = Types.instance(childClassNode.getAst().getContext()).closure(childClassDecl.sym.type);
+        List<Type> closures = Types.instance(childClassNode.getAst().getContext()).closure(childClassDecl.sym.type);
 
-        java.util.List<VisitorClassGenerator> visitorClassGenerators = new ArrayList<>();
+        List<VisitorAcceptorPair> visitorAcceptorPairs = new ArrayList<>();
         for (Type closure : closures) {
-            if (VisitorHandler.visitorBaseClasses.containsKey(closure)) {
-                visitorClassGenerators.add(VisitorHandler.visitorBaseClasses.get(closure));
+            if (VisitorHandler.visitorGeneratorMap.containsKey(closure)) {
+                visitorAcceptorPairs.add(new VisitorAcceptorPair(
+                        VisitorHandler.visitorGeneratorMap.get(closure),
+                        VisitorHandler.acceptorGeneratorMap.get(closure)
+                ));
             }
         }
 
-        return visitorClassGenerators;
+        return visitorAcceptorPairs;
     }
 
-    private void addAcceptorOverride(final JavacNode childClassNode) {
-        String acceptorName = "accept";
-        String returnTypeGeneric = "T";
-        String paramDefaultName = "visitor";
-        JavacTreeMaker treeMaker = childClassNode.getTreeMaker();
-        JCTree.JCClassDecl childClassDecl = (JCTree.JCClassDecl) childClassNode.get();
+    private static class VisitorAcceptorPair {
+        private VisitorClassGenerator visitor;
+        private AcceptorMethodGenerator acceptor;
 
-        if (Utils.isMethodPresent(childClassNode, acceptorName)) {
-            return;
+        public VisitorAcceptorPair(VisitorClassGenerator visitor, AcceptorMethodGenerator acceptor) {
+            this.visitor = visitor;
+            this.acceptor = acceptor;
         }
 
-        long paramFlags = JavacHandlerUtil.addFinalIfNeeded(Flags.PARAMETER, childClassNode.getContext());
+        public VisitorClassGenerator getVisitor() {
+            return visitor;
+        }
 
-        JCTree.JCAnnotation overrideAnnotation = treeMaker.Annotation(JavacHandlerUtil.genJavaLangTypeRef(childClassNode, "Override"), com.sun.tools.javac.util.List.<JCTree.JCExpression>nil());
-
-        JCTree.JCModifiers modifiers = treeMaker.Modifiers(Modifier.PUBLIC, com.sun.tools.javac.util.List.of(overrideAnnotation));
-        Name name = childClassNode.toName(acceptorName);
-        String t = Utils.generateNonClashingNameFor(returnTypeGeneric, childClassDecl);
-        JCTree.JCExpression tType = treeMaker.Ident(childClassNode.toName(t));
-        Name paramName = childClassNode.toName(paramDefaultName);
-
-        // TODO: This is buggy
-        JCTree.JCVariableDecl param = treeMaker.VarDef(treeMaker.Modifiers(paramFlags), paramName, tType, null);
-        com.sun.tools.javac.util.List<JCTree.JCTypeParameter> generics = com.sun.tools.javac.util.List.of(treeMaker.TypeParameter(childClassNode.toName(t), com.sun.tools.javac.util.List.nil()));
-
-        JCTree.JCMethodDecl acceptorMethod = treeMaker.MethodDef(
-                modifiers,
-                name,
-                tType,
-                generics,
-                com.sun.tools.javac.util.List.of(param),
-                com.sun.tools.javac.util.List.nil(),
-                createHelloWorldMethodBody(childClassNode, param),
-                null
-                );
-
-        JavacHandlerUtil.injectMethod(childClassNode, acceptorMethod);
-    }
-
-    private JCTree.JCBlock createHelloWorldMethodBody(JavacNode childClassNode, JCTree.JCVariableDecl param) {
-        JavacTreeMaker treeMaker = childClassNode.getTreeMaker();
-
-        JCTree.JCReturn returnStatement = treeMaker.Return(treeMaker.Ident(childClassNode.toName("visitor")));
-
-        return treeMaker.Block(0, com.sun.tools.javac.util.List.of(returnStatement));
+        public AcceptorMethodGenerator getAcceptor() {
+            return acceptor;
+        }
     }
 
 }

@@ -23,7 +23,7 @@ public class AcceptorMethodGenerator {
         this.visitorClassNode = visitorClassNode;
     }
 
-    public void generateDeclInBase(JavacNode baseClassNode) {
+    public void generateDeclInBase(final JavacNode baseClassNode) {
         JavacTreeMaker treeMaker = baseClassNode.getTreeMaker();
         Name genericName = genericName(baseClassNode);
         JCTree.JCVariableDecl visitorParam = visitorParam(baseClassNode, genericName);
@@ -47,7 +47,7 @@ public class AcceptorMethodGenerator {
         JavacHandlerUtil.injectMethod(baseClassNode, acceptorMethod);
     }
 
-    public void generateImplInChild(final JavacNode childClassNode) {
+    public void generateImplInChild(final JavacNode childClassNode, final String visitMethodName) {
         JavacTreeMaker treeMaker = childClassNode.getTreeMaker();
         Name genericName = genericName(childClassNode);
         JCTree.JCVariableDecl visitorParam = visitorParam(childClassNode, genericName);
@@ -60,14 +60,14 @@ public class AcceptorMethodGenerator {
                 generics(childClassNode, genericName),
                 List.of(visitorParam),
                 List.nil(),
-                childImplBody(childClassNode, visitorParam),
+                childImplBody(childClassNode, visitorParam, visitMethodName),
                 null
         );
 
         JavacHandlerUtil.injectMethod(childClassNode, acceptorMethod);
     }
 
-    private JCTree.JCModifiers modifiersForBaseDecl(JavacNode baseClassNode) throws StopException {
+    private JCTree.JCModifiers modifiersForBaseDecl(final JavacNode baseClassNode) throws StopException {
         JCTree.JCClassDecl classDecl = (JCTree.JCClassDecl) baseClassNode.get();
         JavacTreeMaker treeMaker = baseClassNode.getTreeMaker();
 
@@ -93,42 +93,53 @@ public class AcceptorMethodGenerator {
         return treeMaker.Modifiers(Modifier.PUBLIC, List.of(overrideAnnotation));
     }
 
-    private Name methodName(JavacNode node) {
+    private Name methodName(final JavacNode node) {
         return node.toName(ACCEPTOR_DEFAULT_NAME);
     }
 
-    private Name genericName(JavacNode classNode) {
+    private Name genericName(final JavacNode classNode) {
         JCTree.JCClassDecl classDecl = (JCTree.JCClassDecl) classNode.get();
         String t = Utils.generateNonClashingNameFor(RETURN_TYPE_GENERIC_DEFAULT_NAME, classDecl);
         return classNode.toName(t);
     }
 
-    private JCTree.JCExpression returnType(JavacNode classNode, Name genericName) {
+    private JCTree.JCExpression returnType(final JavacNode classNode, final Name genericName) {
         JavacTreeMaker treeMaker = classNode.getTreeMaker();
         return treeMaker.Ident(genericName);
     }
 
-    private List<JCTree.JCTypeParameter> generics(JavacNode classNode, Name genericName) {
+    private List<JCTree.JCTypeParameter> generics(final JavacNode classNode, final Name genericName) {
         JavacTreeMaker treeMaker = classNode.getTreeMaker();
         return List.of(treeMaker.TypeParameter(genericName, List.nil()));
     }
 
-    private JCTree.JCVariableDecl visitorParam(JavacNode classNode, Name genericName) {
+    private JCTree.JCVariableDecl visitorParam(final JavacNode classNode, final Name genericName) {
         JavacTreeMaker treeMaker = classNode.getTreeMaker();
         Name paramName = classNode.toName(VISITOR_PARAM_DEFAULT_NAME);
         long paramFlags = JavacHandlerUtil.addFinalIfNeeded(Flags.PARAMETER, classNode.getContext());
 
+        JCTree.JCExpression paramType = treeMaker.TypeApply(
+                treeMaker.Ident(((JCTree.JCClassDecl)visitorClassNode.get()).name),
+                List.of(treeMaker.Ident(genericName))
+        );
+
         return treeMaker.VarDef(
                 treeMaker.Modifiers(paramFlags),
                 paramName,
-                treeMaker.Ident(genericName),
+                paramType,
                 null);
     }
 
-    private JCTree.JCBlock childImplBody(JavacNode classNode, JCTree.JCVariableDecl visitorParam) {
+    private JCTree.JCBlock childImplBody(final JavacNode classNode, final JCTree.JCVariableDecl visitorParam,
+                                         final String visitMethodName) {
         JavacTreeMaker treeMaker = classNode.getTreeMaker();
-        JCTree.JCReturn returnStatement = treeMaker.Return(treeMaker.Ident(visitorParam.name));
-        return treeMaker.Block(0, List.of(returnStatement));
+        JCTree.JCExpression caseMethod = JavacHandlerUtil.chainDots(classNode,
+                visitorParam.getName().toString(), visitMethodName);
+        List<JCTree.JCExpression> caseArgs = List.of(treeMaker.Ident(classNode.toName("this")));
+        JCTree.JCMethodInvocation caseInvocation = treeMaker.Apply(List.nil(), caseMethod, caseArgs);
+        JCTree.JCStatement statement = treeMaker.Return(caseInvocation);
+
+        return treeMaker.Block(0, List.of(statement));
     }
 
 }

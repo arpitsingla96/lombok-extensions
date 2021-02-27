@@ -41,7 +41,7 @@ public class VisitorClassGenerator {
         return visitorClassNode;
     }
 
-    public void addVisitMethod(final JavacNode childClassNode) {
+    public String addVisitMethod(final JavacNode childClassNode) {
         String visitMethodName = DEFAULT_VISIT_METHOD_NAME;
         JavacTreeMaker treeMaker = visitorClassNode.getTreeMaker();
         JCTree.JCClassDecl visitorClassDecl = (JCTree.JCClassDecl)visitorClassNode.get();
@@ -69,6 +69,8 @@ public class VisitorClassGenerator {
                 );
 
         JavacHandlerUtil.injectMethod(visitorClassNode, visitMethod);
+
+        return visitMethodName;
     }
 
     private JCTree.JCModifiers visitorClassModifiers() {

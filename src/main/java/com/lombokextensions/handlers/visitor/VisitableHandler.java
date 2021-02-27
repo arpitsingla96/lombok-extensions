@@ -32,8 +32,8 @@ public class VisitableHandler extends JavacAnnotationHandler<Visitable> {
             List<VisitorAcceptorPair> visitorAcceptorPairs = getVisitorAcceptorPairs(childClassNode);
 
             for (VisitorAcceptorPair visitorAcceptorPair : visitorAcceptorPairs) {
-                visitorAcceptorPair.getVisitor().addVisitMethod(childClassNode);
-                visitorAcceptorPair.getAcceptor().generateImplInChild(childClassNode);
+                String visitMethodName = visitorAcceptorPair.getVisitor().addVisitMethod(childClassNode);
+                visitorAcceptorPair.getAcceptor().generateImplInChild(childClassNode, visitMethodName);
             }
 
         } catch (StopException e) {

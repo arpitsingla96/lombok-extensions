@@ -73,8 +73,10 @@ public class AcceptorMethodGenerator {
         JavacTreeMaker treeMaker = baseClassNode.getTreeMaker();
 
         JCTree.JCModifiers modifiers;
-        if (Utils.isAbstractClass(classDecl) || Utils.isEnum(classDecl)) {
+        if (Utils.isAbstractClass(classDecl)) {
             modifiers = treeMaker.Modifiers(Modifier.PROTECTED | Modifier.ABSTRACT);
+        } else if (Utils.isEnum(classDecl)) {
+            modifiers = treeMaker.Modifiers(Modifier.PUBLIC | Modifier.ABSTRACT);
         } else if (Utils.isInterface(classDecl)) {
             modifiers = treeMaker.Modifiers(0L);
         } else {

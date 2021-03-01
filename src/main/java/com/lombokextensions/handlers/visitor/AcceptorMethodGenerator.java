@@ -6,6 +6,7 @@ import com.sun.tools.javac.code.Flags;
 import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.util.List;
 import com.sun.tools.javac.util.Name;
+import lombok.core.AST;
 import lombok.javac.JavacNode;
 import lombok.javac.JavacTreeMaker;
 import lombok.javac.handlers.JavacHandlerUtil;
@@ -142,4 +143,56 @@ public class AcceptorMethodGenerator {
         return treeMaker.Block(0, List.of(statement));
     }
 
+    private JCTree.JCBlock enumBody(final JavacNode enumConstant, final JCTree.JCVariableDecl visitorParam,
+                                    final String visitMethodName) {
+        JavacTreeMaker treeMaker = enumConstant.getTreeMaker();
+        JCTree.JCExpression caseMethod = JavacHandlerUtil.chainDots(enumConstant,
+                visitorParam.getName().toString(), visitMethodName);
+        List<JCTree.JCExpression> caseArgs = List.nil();
+        JCTree.JCMethodInvocation caseInvocation = treeMaker.Apply(List.nil(), caseMethod, caseArgs);
+        JCTree.JCStatement statement = treeMaker.Return(caseInvocation);
+
+        return treeMaker.Block(0, List.of(statement));
+    }
+
+    public void generateImplInEnumConstant(final JavacNode enumConstant, final String visitMethodName, final JavacNode enumNode) {
+        JavacTreeMaker treeMaker = enumConstant.getTreeMaker();
+        JCTree.JCVariableDecl enumField = (JCTree.JCVariableDecl) enumConstant.get();
+
+        Name genericName = enumConstant.toName("T");
+        JCTree.JCVariableDecl visitorParam = visitorParam(enumConstant, genericName);
+
+        JCTree.JCMethodDecl methodDef = treeMaker.MethodDef(
+                modifiersForChildImpl(enumConstant),
+                methodName(enumConstant),
+                returnType(enumConstant, genericName),
+                generics(enumConstant, genericName),
+                List.of(visitorParam),
+                List.nil(),
+                enumBody(enumConstant, visitorParam, visitMethodName),
+                null
+        );
+
+
+        JCTree.JCClassDecl classDecl = JavacHandlerUtil.recursiveSetGeneratedBy(treeMaker.ClassDef(
+                treeMaker.Modifiers(Modifier.STATIC | Flags.ENUM),
+                enumConstant.toName(""),
+                List.nil(),
+                null,
+                List.nil(),
+                List.of(methodDef)
+        ), enumConstant.get(), enumConstant.getContext());
+
+        JCTree.JCNewClass newClass = treeMaker.NewClass(
+                null,
+                List.nil(),
+                enumNode.getTreeMaker().Ident(((JCTree.JCClassDecl)enumNode.get()).name),
+                List.nil(),
+                classDecl
+        );
+
+        JavacNode statement = enumConstant.down().get(0);
+        enumField.init = newClass;
+        statement.add(classDecl, AST.Kind.TYPE);
+    }
 }

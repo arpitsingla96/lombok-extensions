@@ -1,51 +1,54 @@
 package com.lombokextensions.handlers.visitor;
 
-import com.lombokextensions.Visitor;
+import com.lombokextensions.VisitorEnum;
+import com.lombokextensions.common.Utils;
 import com.lombokextensions.exception.StopException;
-import com.sun.tools.javac.code.Type;
 import com.sun.tools.javac.tree.JCTree;
 import lombok.core.AST;
 import lombok.core.AnnotationValues;
-import lombok.core.HandlerPriority;
 import lombok.javac.JavacAnnotationHandler;
 import lombok.javac.JavacNode;
 import lombok.javac.handlers.JavacHandlerUtil;
 import org.kohsuke.MetaInfServices;
 
-import java.util.HashMap;
+import java.util.List;
 
 
 @MetaInfServices(JavacAnnotationHandler.class)
-@HandlerPriority(value = 1, subValue = 1)
-public class VisitorHandler extends JavacAnnotationHandler<Visitor> {
-    public static HashMap<Type, VisitorClassGenerator> visitorGeneratorMap = new HashMap<>();
-    public static HashMap<Type, AcceptorMethodGenerator> acceptorGeneratorMap = new HashMap<>();
-
+public class VisitorEnumHandler extends JavacAnnotationHandler<VisitorEnum> {
     @Override
-    public void handle(final AnnotationValues<Visitor> annotationValues,
+    public void handle(final AnnotationValues<VisitorEnum> annotation,
                        final JCTree.JCAnnotation jcAnnotation,
                        final JavacNode annotationNode) {
         preProcessCleanup(annotationNode);
 
-        final JavacNode baseClassNode = annotationNode.up();
-
+        final JavacNode enumNode = annotationNode.up();
         try {
-            validateUsage(annotationNode, baseClassNode);
+            validateUsage(annotationNode, enumNode);
 
-            VisitorClassGenerator visitorClassGenerator = new VisitorClassGenerator(baseClassNode, defaultName -> defaultName);
+            VisitorClassGenerator visitorClassGenerator = new VisitorClassGenerator(enumNode, new VisitorClassGenerator.VisitMethodNameProvider() {
+                @Override
+                public String provide(String defaultName) {
+                    return defaultName;
+                }
+            });
             JavacNode visitorClassNode = visitorClassGenerator.generateEmptyClass();
 
             AcceptorMethodGenerator acceptorMethodGenerator = new AcceptorMethodGenerator(visitorClassNode);
-            acceptorMethodGenerator.generateDeclInBase(baseClassNode);
-            visitorGeneratorMap.put(((JCTree.JCClassDecl) baseClassNode.get()).sym.type, visitorClassGenerator);
-            acceptorGeneratorMap.put(((JCTree.JCClassDecl) baseClassNode.get()).sym.type, acceptorMethodGenerator);
+            acceptorMethodGenerator.generateDeclInBase(enumNode);
+
+            for (JavacNode enumConstant : Utils.enumConstants(enumNode)) {
+                String visitMethodName = visitorClassGenerator.addVisitMethodForEnum(enumConstant);
+                acceptorMethodGenerator.generateImplInEnumConstant(enumConstant, visitMethodName, enumNode);
+            }
+
         } catch (StopException e) {
             return;
         }
     }
 
     private void preProcessCleanup(final JavacNode annotationNode) {
-        JavacHandlerUtil.deleteAnnotationIfNeccessary(annotationNode, Visitor.class);
+        JavacHandlerUtil.deleteAnnotationIfNeccessary(annotationNode, VisitorEnum.class);
 
         // Delete any imports here
         // deleteImportFromCompilationUnit()
@@ -63,6 +66,5 @@ public class VisitorHandler extends JavacAnnotationHandler<Visitor> {
             throw new StopException();
         }
     }
-
 
 }

@@ -3,11 +3,14 @@ package com.lombokextensions.common;
 
 import com.sun.tools.javac.code.Flags;
 import com.sun.tools.javac.tree.JCTree;
+import lombok.core.AST;
 import lombok.javac.JavacNode;
+import lombok.javac.JavacTreeMaker;
 import lombok.javac.handlers.JavacHandlerUtil;
-import lombok.val;
 
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 
 public class Utils {
     public static boolean isAbstractClass(JCTree.JCClassDecl classDecl) {
@@ -82,6 +85,28 @@ public class Utils {
         return titleCase;
     }
 
+    public static String snakeCaseToCamelCase(final String camelCase) {
+        StringBuilder builder = new StringBuilder();
+
+        boolean capital = true;
+
+        for (char c : camelCase.toCharArray()) {
+            if (c == '_') {
+                capital = true;
+                continue;
+            }
+
+            if (capital) {
+                builder.append(Character.toUpperCase(c));
+                capital = false;
+            } else {
+                builder.append(Character.toLowerCase(c));
+            }
+        }
+
+        return builder.toString();
+    }
+
     public static String variableNameForClass(final JavacNode classNode) {
         JCTree.JCClassDecl classDecl = (JCTree.JCClassDecl) classNode.get();
         String className = classDecl.name.toString();
@@ -94,4 +119,41 @@ public class Utils {
         }
     }
 
+    public static List<JCTree.JCVariableDecl> enumConstants(final JCTree.JCClassDecl classDecl) {
+        List<JCTree.JCVariableDecl> enumConstants = new ArrayList<>();
+        for (JCTree tree : classDecl.getMembers()) {
+            tree.accept(new JCTree.Visitor() {
+                @Override
+                public void visitVarDef(JCTree.JCVariableDecl that) {
+                    if (JavacHandlerUtil.isEnumConstant(that)) {
+                        enumConstants.add(that);
+                    }
+                }
+
+                @Override
+                public void visitTree(JCTree that) {
+                }
+            });
+        }
+
+        return enumConstants;
+    }
+
+    public static List<JavacNode> enumConstants(final JavacNode enumNode) {
+        List<JavacNode> enumConstants = new ArrayList<>();
+
+        for (JavacNode child : enumNode.down()) {
+            if (child.getKind() != AST.Kind.FIELD) continue;
+            JCTree.JCVariableDecl variableDecl = (JCTree.JCVariableDecl) child.get();
+            if (!JavacHandlerUtil.isEnumConstant(variableDecl)) continue;
+
+            enumConstants.add(child);
+        }
+
+        return enumConstants;
+    }
+
+    public static JCTree.JCExpression copyType(JavacTreeMaker treeMaker, JCTree.JCVariableDecl fieldNode) {
+        return fieldNode.type != null ? treeMaker.Type(fieldNode.type) : fieldNode.vartype;
+    }
 }
